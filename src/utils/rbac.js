@@ -257,6 +257,20 @@ let bootstrapPromise = null;
 const ensureRbacSchema = async (db) => {
   const statements = [
     `
+      CREATE TABLE IF NOT EXISTS "User" (
+        "id" SERIAL NOT NULL,
+        "name" TEXT NOT NULL,
+        "email" TEXT NOT NULL,
+        "passwordHash" TEXT NOT NULL,
+        "role" TEXT NOT NULL DEFAULT 'Admin',
+        "status" TEXT NOT NULL DEFAULT 'Active',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+      );
+    `,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email");`,
+    `
       CREATE TABLE IF NOT EXISTS "Role" (
         "id" SERIAL NOT NULL,
         "key" TEXT NOT NULL,
