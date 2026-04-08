@@ -14,6 +14,7 @@ const emiRoutes = require("./routes/emi");
 const logisticsRoutes = require("./routes/logistics");
 const authRoutes = require("./routes/auth");
 const rbacRoutes = require("./routes/rbac");
+const testDbRoutes = require("./routes/testDb");
 const { authRequired } = require("./middleware/auth");
 
 const app = express();
@@ -30,6 +31,7 @@ app.get("/api/v1/health", (req, res) => {
   res.json({ status: "ok", service: "china-bedsheet-erp-backend" });
 });
 
+app.use("/test-db", testDbRoutes);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/inventory", authRequired, inventoryRoutes);
 app.use("/api/v1/purchases", authRequired, purchasesRoutes);
