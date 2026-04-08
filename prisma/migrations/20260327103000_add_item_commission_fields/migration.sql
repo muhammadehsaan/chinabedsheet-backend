@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Item"
+ADD COLUMN "commissionPercent" DECIMAL(7,2) NOT NULL DEFAULT 0,
+ADD COLUMN "commissionAmount" DECIMAL(12,2) NOT NULL DEFAULT 0;

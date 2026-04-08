@@ -1,0 +1,386 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  status    String   @default("Active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items     Item[]
+}
+
+model Unit {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items     Item[]
+}
+
+model Item {
+  id                Int      @id @default(autoincrement())
+  name              String
+  sku               String?  @unique
+  status            String   @default("Active")
+  categoryId        Int?
+  unitId            Int?
+  lowStockThreshold Int      @default(5)
+  barcodeType       String?
+  barcode           String?  @unique
+  purchasePrice     Decimal  @default(0) @db.Decimal(12, 2)
+  wholesalePrice    Decimal  @default(0) @db.Decimal(12, 2)
+  retailPrice       Decimal  @default(0) @db.Decimal(12, 2)
+  marketPrice       Decimal  @default(0) @db.Decimal(12, 2)
+  commissionPercent Decimal  @default(0) @db.Decimal(7, 2)
+  commissionAmount  Decimal  @default(0) @db.Decimal(12, 2)
+  currentStock      Decimal  @default(0) @db.Decimal(12, 3)
+  imageUrls         Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  category        Category?        @relation(fields: [categoryId], references: [id])
+  unit            Unit?            @relation(fields: [unitId], references: [id])
+  variations      Variation[]
+  purchaseLines   PurchaseLine[]
+  saleLines       SaleLine[]
+  stockAdjustments StockAdjustment[]
+
+  @@index([name])
+}
+
+model Variation {
+  id            Int      @id @default(autoincrement())
+  itemId        Int
+  size          String?
+  color         String?
+  clothType     String?
+  barcodeType   String?
+  barcode       String?
+  purchasePrice Decimal? @db.Decimal(12, 2)
+  wholesalePrice Decimal? @db.Decimal(12, 2)
+  retailPrice   Decimal? @db.Decimal(12, 2)
+  marketPrice   Decimal? @db.Decimal(12, 2)
+  openingStock  Decimal? @db.Decimal(12, 3)
+  imageUrl      String?
+  imageUrls     Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  item Item @relation(fields: [itemId], references: [id])
+}
+
+model Party {
+  id             Int      @id @default(autoincrement())
+  partyNumber    String?  @unique
+  name           String
+  type           String
+  phone          String?
+  email          String?
+  address        String?
+  openingBalance Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  purchases Purchase[]
+  sales     Sale[]
+  entries   AccountsEntry[]
+  claims    Claim[]
+  emis      EMIAccount[]
+}
+
+model Purchase {
+  id           Int      @id @default(autoincrement())
+  invoiceNo    String?
+  billNo       String?
+  purchaseDate DateTime
+  paymentMethod String
+  notes        String?
+  supplierId   Int?
+  bankAccountId Int?
+  bankAmount   Decimal? @db.Decimal(12, 2)
+  subtotal     Decimal  @db.Decimal(12, 2)
+  taxAmount    Decimal  @db.Decimal(12, 2)
+  totalAmount  Decimal  @db.Decimal(12, 2)
+  createdAt    DateTime @default(now())
+
+  supplier Party?        @relation(fields: [supplierId], references: [id])
+  bankAccount BankAccount? @relation(fields: [bankAccountId], references: [id])
+  lines    PurchaseLine[]
+}
+
+model PurchaseLine {
+  id         Int      @id @default(autoincrement())
+  purchaseId Int
+  itemId     Int?
+  itemName   String
+  quantity   Decimal  @db.Decimal(12, 3)
+  unitCost   Decimal  @db.Decimal(12, 2)
+  gstPercent Decimal  @default(0) @db.Decimal(5, 2)
+  taxAmount  Decimal  @db.Decimal(12, 2)
+  lineTotal  Decimal  @db.Decimal(12, 2)
+  lotNo      String?
+  createdAt  DateTime @default(now())
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id])
+  item     Item?    @relation(fields: [itemId], references: [id])
+}
+
+model Sale {
+  id           Int      @id @default(autoincrement())
+  invoiceNo    String?
+  saleDate     DateTime
+  paymentMethod String?
+  notes        String?
+  customerId   Int?
+  bankAccountId Int?
+  bankAmount   Decimal?  @db.Decimal(12, 2)
+  pricingMode  String?
+  language     String?
+  subtotal     Decimal  @db.Decimal(12, 2)
+  taxAmount    Decimal  @db.Decimal(12, 2)
+  totalAmount  Decimal  @db.Decimal(12, 2)
+  promiseDate  DateTime?
+  loyaltyPoints Int?
+  createdAt    DateTime @default(now())
+
+  customer Party?   @relation(fields: [customerId], references: [id])
+  bankAccount BankAccount? @relation(fields: [bankAccountId], references: [id])
+  lines    SaleLine[]
+  deliveries Delivery[]
+  payments SalePayment[]
+}
+
+model SaleLine {
+  id         Int      @id @default(autoincrement())
+  saleId     Int
+  itemId     Int?
+  itemName   String
+  quantity   Decimal  @db.Decimal(12, 3)
+  unitPrice  Decimal  @db.Decimal(12, 2)
+  taxPercent Decimal  @default(0) @db.Decimal(5, 2)
+  taxAmount  Decimal  @db.Decimal(12, 2)
+  lineTotal  Decimal  @db.Decimal(12, 2)
+  createdAt  DateTime @default(now())
+
+  sale Sale  @relation(fields: [saleId], references: [id])
+  item Item? @relation(fields: [itemId], references: [id])
+}
+
+model StockAdjustment {
+  id        Int      @id @default(autoincrement())
+  itemId    Int
+  quantity  Decimal  @db.Decimal(12, 3)
+  reason    String?
+  createdAt DateTime @default(now())
+
+  item Item @relation(fields: [itemId], references: [id])
+}
+
+model AccountsEntry {
+  id          Int      @id @default(autoincrement())
+  entryDate   DateTime
+  type        String
+  amount      Decimal  @db.Decimal(12, 2)
+  mode        String
+  bankName    String?
+  description String?
+  partyId     Int?
+  createdAt   DateTime @default(now())
+
+  party Party? @relation(fields: [partyId], references: [id])
+}
+
+model BankAccount {
+  id             Int      @id @default(autoincrement())
+  bankName       String
+  accountTitle   String
+  accountNumber  String   @unique
+  openingBalance Decimal  @default(0) @db.Decimal(12, 2)
+  currentBalance Decimal  @default(0) @db.Decimal(12, 2)
+  openingDate    DateTime?
+  branchName     String?
+  accountType    String   @default("CURRENT")
+  iban           String?
+  notes          String?
+  status         String   @default("Active")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  purchases Purchase[]
+  sales     Sale[]
+  salePayments SalePayment[]
+}
+
+model SalePayment {
+  id            Int      @id @default(autoincrement())
+  saleId        Int
+  method        String
+  amount        Decimal  @db.Decimal(12, 2)
+  bankAccountId Int?
+  createdAt     DateTime @default(now())
+
+  sale        Sale        @relation(fields: [saleId], references: [id])
+  bankAccount BankAccount? @relation(fields: [bankAccountId], references: [id])
+
+  @@index([saleId])
+  @@index([bankAccountId])
+}
+
+model ProductionRecipe {
+  id          Int      @id @default(autoincrement())
+  name        String
+  productName String
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bomLines BomLine[]
+  runs     ProductionRun[]
+}
+
+model BomLine {
+  id              Int      @id @default(autoincrement())
+  recipeId        Int
+  materialName    String
+  quantityPerUnit Decimal  @db.Decimal(12, 3)
+  unit            String
+  costPerUnit     Decimal  @db.Decimal(12, 2)
+  createdAt       DateTime @default(now())
+
+  recipe ProductionRecipe @relation(fields: [recipeId], references: [id])
+}
+
+model ProductionRun {
+  id               Int      @id @default(autoincrement())
+  recipeId         Int?
+  productName      String
+  units            Decimal  @db.Decimal(12, 3)
+  status           String   @default("Processing")
+  materialCost     Decimal  @db.Decimal(12, 2)
+  laborCost        Decimal  @db.Decimal(12, 2)
+  overheadCost     Decimal  @db.Decimal(12, 2)
+  totalCostPerUnit Decimal  @db.Decimal(12, 2)
+  createdAt        DateTime @default(now())
+
+  recipe ProductionRecipe? @relation(fields: [recipeId], references: [id])
+}
+
+model EMIAccount {
+  id                Int      @id @default(autoincrement())
+  customerId        Int
+  totalAmount       Decimal  @db.Decimal(12, 2)
+  installmentsCount Int
+  startDate         DateTime
+  status            String   @default("Active")
+  penaltyPercent    Decimal  @default(0) @db.Decimal(5, 2)
+  createdAt         DateTime @default(now())
+
+  customer Party       @relation(fields: [customerId], references: [id])
+  schedules EMISchedule[]
+}
+
+model EMISchedule {
+  id            Int      @id @default(autoincrement())
+  emiId         Int
+  dueDate       DateTime
+  amount        Decimal  @db.Decimal(12, 2)
+  status        String   @default("Pending")
+  paidAt        DateTime?
+  penaltyAmount Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt     DateTime @default(now())
+
+  emi EMIAccount @relation(fields: [emiId], references: [id])
+}
+
+model Claim {
+  id          Int      @id @default(autoincrement())
+  customerId  Int?
+  description String
+  status      String   @default("Pending")
+  createdAt   DateTime @default(now())
+
+  customer Party? @relation(fields: [customerId], references: [id])
+}
+
+model Rider {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String?
+  lastLat   Decimal? @db.Decimal(9, 6)
+  lastLng   Decimal? @db.Decimal(9, 6)
+  status    String?
+  createdAt DateTime @default(now())
+
+  deliveries Delivery[]
+}
+
+model Delivery {
+  id        Int      @id @default(autoincrement())
+  saleId    Int?
+  riderId   Int?
+  status    String   @default("Hold")
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sale  Sale?  @relation(fields: [saleId], references: [id])
+  rider Rider? @relation(fields: [riderId], references: [id])
+}
+
+model Deal {
+  id               Int      @id @default(autoincrement())
+  name             String
+  productsIncluded String?
+  price            Decimal  @db.Decimal(12, 2)
+  status           String   @default("Active")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  entity    String
+  action    String
+  refNo     String?
+  userName  String?
+  createdAt DateTime @default(now())
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  name        String   @unique
+  description String?
+  status      String   @default("Active")
+  isLocked    Boolean  @default(false)
+  permissions Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users User[]
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  username     String?
+  email        String   @unique
+  phone        String?
+  notes        String?
+  passwordHash String
+  role         String   @default("Admin")
+  roleId       Int?
+  status       String   @default("Active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  roleConfig Role? @relation(fields: [roleId], references: [id])
+}
