@@ -14,10 +14,26 @@ const signToken = (user) => {
   return jwt.sign(payload, process.env.JWT_SECRET || "secret", { expiresIn: "7d" });
 };
 
+const readAuthSetup = async () => {
+  await ensureRbacSetup(prisma);
+  const usersCount = await prisma.user.count();
+  return {
+    usersCount,
+    allowPublicSignup: usersCount === 0,
+  };
+};
+
+router.get(
+  "/setup",
+  asyncHandler(async (_req, res) => {
+    res.json({ data: await readAuthSetup() });
+  }),
+);
+
 router.post(
   "/signup",
   asyncHandler(async (req, res) => {
-    await ensureRbacSetup(prisma);
+    const setup = await readAuthSetup();
     const payload = req.body || {};
     const name = String(payload.name || "").trim();
     const email = String(payload.email || "").trim().toLowerCase();
@@ -27,8 +43,7 @@ router.post(
       return res.status(400).json({ message: "Name, email, and password are required." });
     }
 
-    const existingUsersCount = await prisma.user.count();
-    if (existingUsersCount > 0) {
+    if (!setup.allowPublicSignup) {
       return res.status(403).json({ message: "Public signup is disabled. Ask admin to create a user." });
     }
 

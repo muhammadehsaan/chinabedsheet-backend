@@ -1,5 +1,9 @@
 require("dotenv").config();
 
+const { normalizeDatabaseEnv } = require("./utils/env");
+
+normalizeDatabaseEnv(process.env);
+
 const { app } = require("./app");
 
 const PORT = Number(process.env.PORT || 5000);

@@ -254,12 +254,65 @@ const attachUserRole = async (db, user) => {
 
 let bootstrapPromise = null;
 
+const ensureRbacSchema = async (db) => {
+  const statements = [
+    `
+      CREATE TABLE IF NOT EXISTS "Role" (
+        "id" SERIAL NOT NULL,
+        "key" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "description" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'Active',
+        "isLocked" BOOLEAN NOT NULL DEFAULT false,
+        "permissions" JSONB NOT NULL DEFAULT '{}'::jsonb,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "Role_pkey" PRIMARY KEY ("id")
+      );
+    `,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Role_key_key" ON "Role"("key");`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Role_name_key" ON "Role"("name");`,
+    `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "username" TEXT;`,
+    `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "phone" TEXT;`,
+    `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "notes" TEXT;`,
+    `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "roleId" INTEGER;`,
+    `CREATE INDEX IF NOT EXISTS "User_roleId_idx" ON "User"("roleId");`,
+    `
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'User_roleId_fkey'
+        ) THEN
+          ALTER TABLE "User"
+          ADD CONSTRAINT "User_roleId_fkey"
+          FOREIGN KEY ("roleId") REFERENCES "Role"("id")
+          ON DELETE SET NULL
+          ON UPDATE CASCADE;
+        END IF;
+      END $$;
+    `,
+    `
+      UPDATE "User"
+      SET "username" = COALESCE(NULLIF(split_part("email", '@', 1), ''), 'user-' || "id")
+      WHERE "username" IS NULL;
+    `,
+  ];
+
+  for (const statement of statements) {
+    await db.$executeRawUnsafe(statement);
+  }
+};
+
 const ensureRbacSetup = async (db) => {
   if (bootstrapPromise) {
     return bootstrapPromise;
   }
 
   bootstrapPromise = (async () => {
+    await ensureRbacSchema(db);
+
     for (const role of defaultRoles) {
       await db.role.upsert({
         where: { key: role.key },
