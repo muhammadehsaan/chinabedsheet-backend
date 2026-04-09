@@ -173,31 +173,55 @@ const findOrCreateSupplier = async (db, payload = {}) => {
   };
 };
 
-const findOrCreateItem = async (db, itemId, itemName, unitCost) => {
-  if (itemId) {
-    return db.item.findUnique({ where: { id: Number(itemId) } });
+const findOrCreateItem = async (db, itemId, itemName, unitCost, itemCache = null) => {
+  const numericItemId = Number(itemId);
+  if (Number.isFinite(numericItemId) && numericItemId > 0) {
+    const idKey = `id:${numericItemId}`;
+    if (itemCache?.has(idKey)) {
+      return itemCache.get(idKey);
+    }
+    const existingById = await db.item.findUnique({ where: { id: numericItemId } });
+    if (existingById && itemCache) {
+      itemCache.set(idKey, existingById);
+      itemCache.set(`name:${String(existingById.name || "").trim().toLowerCase()}`, existingById);
+    }
+    return existingById;
   }
   const name = String(itemName || "").trim();
   if (!name) {
     return null;
   }
+  const nameKey = `name:${name.toLowerCase()}`;
+  if (itemCache?.has(nameKey)) {
+    return itemCache.get(nameKey);
+  }
   const existing = await db.item.findFirst({
     where: { name: { equals: name, mode: "insensitive" } },
   });
   if (existing) {
+    if (itemCache) {
+      itemCache.set(nameKey, existing);
+      itemCache.set(`id:${existing.id}`, existing);
+    }
     return existing;
   }
-  return db.item.create({
+  const created = await db.item.create({
     data: {
       name,
       status: "Active",
       purchasePrice: round2(unitCost || 0),
     },
   });
+  if (itemCache) {
+    itemCache.set(nameKey, created);
+    itemCache.set(`id:${created.id}`, created);
+  }
+  return created;
 };
 
 const preparePurchaseLines = async (db, lines) => {
   const preparedLines = [];
+  const itemCache = new Map();
   let subtotal = 0;
   let taxAmount = 0;
   let totalAmount = 0;
@@ -211,7 +235,7 @@ const preparePurchaseLines = async (db, lines) => {
     taxAmount += totals.tax;
     totalAmount += totals.total;
 
-    const item = await findOrCreateItem(db, line.itemId, line.itemName, unitCost);
+    const item = await findOrCreateItem(db, line.itemId, line.itemName, unitCost, itemCache);
     preparedLines.push({
       itemId: item ? item.id : null,
       itemName: line.itemName || item?.name || "Product",
@@ -234,17 +258,16 @@ const preparePurchaseLines = async (db, lines) => {
 
 const applyPurchaseStock = async (tx, lines) => {
   for (const line of lines) {
-    if (!line.itemId) {
-      continue;
-    }
-    const item = await tx.item.findUnique({ where: { id: line.itemId } });
-    if (!item) {
+    const itemId = Number(line.itemId);
+    if (!Number.isFinite(itemId) || itemId <= 0) {
       continue;
     }
     await tx.item.update({
-      where: { id: line.itemId },
+      where: { id: itemId },
       data: {
-        currentStock: round3(Number(item.currentStock) + Number(line.quantity)),
+        currentStock: {
+          increment: round3(Number(line.quantity || 0)),
+        },
         purchasePrice: round2(line.unitCost),
       },
     });
@@ -253,17 +276,16 @@ const applyPurchaseStock = async (tx, lines) => {
 
 const reversePurchaseStock = async (tx, lines) => {
   for (const line of lines) {
-    if (!line.itemId) {
-      continue;
-    }
-    const item = await tx.item.findUnique({ where: { id: line.itemId } });
-    if (!item) {
+    const itemId = Number(line.itemId);
+    if (!Number.isFinite(itemId) || itemId <= 0) {
       continue;
     }
     await tx.item.update({
-      where: { id: line.itemId },
+      where: { id: itemId },
       data: {
-        currentStock: round3(Number(item.currentStock) - Number(line.quantity)),
+        currentStock: {
+          decrement: round3(Number(line.quantity || 0)),
+        },
       },
     });
   }
