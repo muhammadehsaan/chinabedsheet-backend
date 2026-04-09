@@ -23,6 +23,11 @@ const parseTrailingNumber = (value) => {
 };
 const formatPartyNumber = (number) => String(number).padStart(3, "0");
 const normalizeBankAmount = (value) => round2(value || 0);
+const PURCHASE_TX_OPTIONS = {
+  maxWait: 15000,
+  timeout: 120000,
+};
+
 const adjustBankBalance = async (tx, bankAccountId, deltaAmount) => {
   const resolvedBankId = Number(bankAccountId || 0);
   const delta = round2(deltaAmount || 0);
@@ -357,7 +362,7 @@ router.post(
       }
 
       return attachPartyNumberToPurchase(tx, record);
-    });
+    }, PURCHASE_TX_OPTIONS);
 
     res.status(201).json({ data: purchase });
   }),
@@ -475,7 +480,7 @@ router.patch(
         await adjustBankBalance(tx, record.bankAccountId, -Number(record.bankAmount || 0));
 
         return attachPartyNumberToPurchase(tx, record);
-      });
+      }, PURCHASE_TX_OPTIONS);
     } else {
       updated = await prisma.$transaction(async (tx) => {
         await adjustBankBalance(tx, existing.bankAccountId, Number(existing.bankAmount || 0));
@@ -486,7 +491,7 @@ router.patch(
         });
         await adjustBankBalance(tx, record.bankAccountId, -Number(record.bankAmount || 0));
         return record;
-      });
+      }, PURCHASE_TX_OPTIONS);
       updated = await attachPartyNumberToPurchase(prisma, updated);
     }
 
