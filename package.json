@@ -21,7 +21,9 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "pg": "^8.20.0",
-    "prisma": "^5.14.0",
     "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "prisma": "^5.14.0"
   }
 }

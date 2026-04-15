@@ -7,37 +7,13 @@ const normalizePartyNumber = (value) => {
   return text || null;
 };
 
-const resolvePostgresErrorCode = (error) => {
-  const code = error?.meta?.code || error?.code;
-  if (code) {
-    return String(code).toUpperCase();
-  }
-  const text = `${error?.message || ""} ${error?.meta?.message || ""}`;
-  const match = text.match(/\b(?:code|Code):\s*`?([0-9A-Z]{5})`?/);
-  return match ? String(match[1]).toUpperCase() : null;
-};
-
-const isMissingPartyNumberColumnError = (error) => {
-  const code = resolvePostgresErrorCode(error);
-  if (code === "42703") {
-    return true;
-  }
-  const text = `${error?.message || ""} ${error?.meta?.message || ""}`;
-  return /partyNumber/i.test(text) && /does not exist|unknown column|not found/i.test(text);
-};
-
 const ensurePartyNumberColumn = async (db) => {
   if (!ensurePartyNumberColumnPromise) {
     ensurePartyNumberColumnPromise = (async () => {
-      try {
-        await db.$queryRaw(Prisma.sql`SELECT "partyNumber" FROM "Party" LIMIT 1`);
-        return true;
-      } catch (error) {
-        if (isMissingPartyNumberColumnError(error)) {
-          return false;
-        }
-        throw error;
-      }
+      await db.$executeRawUnsafe('ALTER TABLE "Party" ADD COLUMN IF NOT EXISTS "partyNumber" TEXT');
+      await db.$executeRawUnsafe(
+        'CREATE UNIQUE INDEX IF NOT EXISTS "Party_partyNumber_key" ON "Party"("partyNumber")',
+      );
     })().catch((error) => {
       ensurePartyNumberColumnPromise = null;
       throw error;
@@ -57,10 +33,7 @@ const getPartyNumberMap = async (db, partyIds = []) => {
   if (normalizedIds.length === 0) {
     return new Map();
   }
-  const hasPartyNumberColumn = await ensurePartyNumberColumn(db);
-  if (!hasPartyNumberColumn) {
-    return new Map();
-  }
+  await ensurePartyNumberColumn(db);
   const rows = await db.$queryRaw(
     Prisma.sql`SELECT "id", "partyNumber" FROM "Party" WHERE "id" IN (${Prisma.join(normalizedIds)})`,
   );
@@ -75,10 +48,7 @@ const getPartyNumberById = async (db, partyId) => {
 };
 
 const listPartyNumbers = async (db) => {
-  const hasPartyNumberColumn = await ensurePartyNumberColumn(db);
-  if (!hasPartyNumberColumn) {
-    return [];
-  }
+  await ensurePartyNumberColumn(db);
   const rows = await db.$queryRaw(
     Prisma.sql`SELECT "partyNumber" FROM "Party" WHERE "partyNumber" IS NOT NULL`,
   );
@@ -92,10 +62,7 @@ const findPartyIdByPartyNumber = async (db, partyNumber) => {
   if (!normalized) {
     return null;
   }
-  const hasPartyNumberColumn = await ensurePartyNumberColumn(db);
-  if (!hasPartyNumberColumn) {
-    return null;
-  }
+  await ensurePartyNumberColumn(db);
   const rows = await db.$queryRaw(
     Prisma.sql`
       SELECT "id"
@@ -113,10 +80,7 @@ const setPartyNumberById = async (db, partyId, partyNumber) => {
   if (!Number.isFinite(normalizedId)) {
     return null;
   }
-  const hasPartyNumberColumn = await ensurePartyNumberColumn(db);
-  if (!hasPartyNumberColumn) {
-    return null;
-  }
+  await ensurePartyNumberColumn(db);
   const normalized = normalizePartyNumber(partyNumber);
   await db.$executeRaw(
     Prisma.sql`UPDATE "Party" SET "partyNumber" = ${normalized} WHERE "id" = ${normalizedId}`,

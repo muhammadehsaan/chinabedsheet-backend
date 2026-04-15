@@ -430,7 +430,6 @@ router.post(
           subtotal: round2(subtotal),
           taxAmount: round2(taxAmount),
           totalAmount: round2(totalAmount),
-          promiseDate: isCreditSale ? promiseDate : null,
           loyaltyPoints: Math.floor(totalAmount / 1000),
           lines: {
             create: preparedLines,
@@ -744,6 +743,8 @@ router.patch(
       await tx.saleLine.deleteMany({ where: { saleId } });
       await tx.salePayment.deleteMany({ where: { saleId } });
 
+      await tx.salePayment.deleteMany({ where: { saleId } });
+
       const record = await tx.sale.update({
         where: { id: saleId },
         data: {
@@ -762,7 +763,6 @@ router.patch(
           subtotal: round2(subtotal),
           taxAmount: round2(taxAmount),
           totalAmount: round2(totalAmount),
-          promiseDate: isCreditSale ? promiseDate : null,
           loyaltyPoints: Math.floor(totalAmount / 1000),
           lines: {
             create: preparedLines,
@@ -887,7 +887,6 @@ router.post(
           subtotal: 0,
           taxAmount: 0,
           totalAmount: 0,
-          promiseDate: null,
           loyaltyPoints: 0,
         },
         include: { customer: true, lines: true, bankAccount: true, payments: true },
