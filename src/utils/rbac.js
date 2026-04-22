@@ -50,6 +50,16 @@ const permissionGroups = [
     ],
   },
   {
+    key: "parties",
+    label: "Parties",
+    permissions: [
+      { key: "parties.view", label: "View parties" },
+      { key: "parties.create", label: "Create party and payment entries" },
+      { key: "parties.edit", label: "Edit parties and payments" },
+      { key: "parties.delete", label: "Delete parties and payments" },
+    ],
+  },
+  {
     key: "accounts",
     label: "Accounts & Finance",
     permissions: [
@@ -135,6 +145,9 @@ const defaultRoles = [
       "purchases.view": true,
       "purchases.create": true,
       "purchases.edit": true,
+      "parties.view": true,
+      "parties.create": true,
+      "parties.edit": true,
       "accounts.view": true,
       "accounts.create": true,
       "accounts.edit": true,
@@ -159,6 +172,7 @@ const defaultRoles = [
       "sales.create": true,
       "sales.print": true,
       "inventory.view": true,
+      "parties.view": true,
       "emi.view": true,
       "emi.create": true,
       "reports.view": true,

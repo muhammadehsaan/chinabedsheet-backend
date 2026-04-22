@@ -190,7 +190,7 @@ router.get(
   requirePermission("inventory.view"),
   asyncHandler(async (req, res) => {
     const items = await prisma.item.findMany({
-      include: { category: true, unit: true },
+      include: { category: true, unit: true, variations: true },
       orderBy: { createdAt: "desc" },
     });
     const data = items.map((item) => ({
