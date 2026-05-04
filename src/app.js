@@ -14,6 +14,7 @@ const emiRoutes = require("./routes/emi");
 const logisticsRoutes = require("./routes/logistics");
 const authRoutes = require("./routes/auth");
 const rbacRoutes = require("./routes/rbac");
+const dealsRoutes = require("./routes/deals");
 const testDbRoutes = require("./routes/testDb");
 const { authRequired } = require("./middleware/auth");
 
@@ -43,6 +44,7 @@ app.use("/api/v1/production", authRequired, productionRoutes);
 app.use("/api/v1/emi", authRequired, emiRoutes);
 app.use("/api/v1/logistics", authRequired, logisticsRoutes);
 app.use("/api/v1/rbac", authRequired, rbacRoutes);
+app.use("/api/v1/deals", authRequired, dealsRoutes);
 
 app.use(errorHandler);
 
