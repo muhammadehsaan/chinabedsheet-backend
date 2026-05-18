@@ -10,18 +10,22 @@ const { app } = require("./app");
 const PORT = Number(process.env.PORT || 5000);
 
 const startServer = async () => {
-  try {
-    await ensureDatabaseReady();
+  const startHttpServer = () => {
     app.listen(PORT, () => {
       // eslint-disable-next-line no-console
       console.log(`Backend running on http://localhost:${PORT}`);
     });
+  };
+
+  try {
+    await ensureDatabaseReady();
+    startHttpServer();
   } catch (error) {
     // eslint-disable-next-line no-console
-    console.error("Startup failed while preparing database schema.");
+    console.error("Database bootstrap failed. Continuing with existing schema.");
     // eslint-disable-next-line no-console
     console.error(error?.message || error);
-    process.exit(1);
+    startHttpServer();
   }
 };
 
